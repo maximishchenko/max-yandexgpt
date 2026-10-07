@@ -2,4 +2,3 @@
 from max_yandexgpt import MaxYandexGPT
 
 MaxYandexGPT().run()
-
