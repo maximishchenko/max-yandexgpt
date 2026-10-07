@@ -1,0 +1,18 @@
+repos:
+    - repo: local
+      hooks:
+          - id: ruff
+            name: ruff check
+            entry: make lint-all
+            language: system
+            types: [python]
+            pass_filenames: false
+            always_run: true
+
+          - id: mypy
+            name: mypy strict check
+            entry: make typing-all
+            language: system
+            types: [python]
+            pass_filenames: false
+            always_run: true
