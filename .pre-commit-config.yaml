@@ -24,3 +24,18 @@ repos:
             types: [python]
             pass_filenames: false
             always_run: true
+
+          - id: commitizen
+            name: commitizen check
+            entry: make check-commit-msg
+            language: system
+            pass_filenames: true
+            stages: [commit-msg]
+
+          - id: version-dry-run
+            name: preview next version
+            entry: make version-dry-run
+            language: system
+            pass_filenames: false
+            always_run: true
+            stages: [post-commit]
