@@ -5,13 +5,20 @@ import logging
 import os
 
 from maxapi import Bot, Dispatcher
-from maxapi.types import BotStartedUpdate, MessageCreatedUpdate
 from maxapi.filters import F
+from maxapi.types import BotStarted, MessageCreated
 
 from .config import Config
 from .llm import YandexGPT
 
 logger = logging.getLogger("max_yandexgpt")
+
+
+def _env_or(value: str | None, env_name: str) -> str:
+    """Return ``value`` if set, otherwise the environment variable (or "")."""
+    if value:
+        return value
+    return os.environ.get(env_name, "")
 
 
 class MaxYandexGPT:
@@ -41,14 +48,37 @@ class MaxYandexGPT:
         stream: bool | None = None,
         temperature: float | None = None,
         max_tokens: int | None = None,
-    ):
+    ) -> None:
+        """Bot params initialization.
+
+        Args:
+            max_token (str | None, optional): Max messenger bot token..
+                Defaults to None.
+            yandex_api_key (str | None, optional): Yandex GPT API key.
+                Defaults to None.
+            yandex_folder_id (str | None, optional): Yandex GPT folder ID.
+                Defaults to None.
+            config (Config | None, optional): Bot configuration..
+                Defaults to None.
+            model (str | None, optional): YandexGPT model name..
+                Defaults to None.
+            system_prompt (str | None, optional): System prompt for YandexGPT.
+                Defaults to None.
+            stream (bool | None, optional): Whether to use streaming response.
+                Defaults to None.
+            temperature (float | None, optional): Generation temperature.
+                Defaults to None.
+            max_tokens (int | None, optional): Maximum number of tokens.
+                Defaults to None.
+
+        """
         if config:
             self.config = config
         else:
             self.config = Config(
-                max_token=max_token or os.getenv("MAX_TOKEN", ""),
-                yandex_api_key=yandex_api_key or os.getenv("YANDEX_API_KEY", ""),
-                yandex_folder_id=yandex_folder_id or os.getenv("YANDEX_FOLDER_ID", ""),
+                max_token=_env_or(max_token, "MAX_TOKEN"),
+                yandex_api_key=_env_or(yandex_api_key, "YANDEX_API_KEY"),
+                yandex_folder_id=_env_or(yandex_folder_id, "YANDEX_FOLDER_ID"),
             )
 
         if model is not None:
@@ -62,44 +92,72 @@ class MaxYandexGPT:
         if max_tokens is not None:
             self.config.max_tokens = max_tokens
 
-        self.config.validate()
-
         self.bot = Bot(token=self.config.max_token)
-        self.dp = Dispatcher(self.bot)
+        self.dp = Dispatcher()
         self.llm = YandexGPT(self.config)
 
         self._register_handlers()
 
-    def _register_handlers(self):
+    def _register_handlers(self) -> None:
         """Register default message handlers."""
+        # ``maxapi`` ``Event.register`` takes/returns bare ``Callable``, which
+        # strict pyright reports as partially unknown; suppress it here only.
+        self.dp.bot_started.register(  # pyright: ignore[reportUnknownMemberType]
+            self._on_start
+        )
+        self.dp.message_created.register(  # pyright: ignore[reportUnknownMemberType]
+            self._on_message, F.message.body.text
+        )
 
-        @self.dp.bot_started()
-        async def on_start(event: BotStartedUpdate):
-            await event.message.answer("Привет! Я бот с YandexGPT. Напиши мне что-нибудь.")
+    async def _on_start(self, event: BotStarted) -> None:
+        """Greet the user when the bot is started."""
+        if event.bot is None:
+            return
+        await event.bot.send_message(
+            chat_id=event.chat_id,
+            text="Привет! Я бот с YandexGPT. Напиши мне что-нибудь.",
+        )
 
-        @self.dp.message_created(F.message.body.text)
-        async def on_message(event: MessageCreatedUpdate):
-            user_text = event.message.body.text
+    async def _on_message(self, event: MessageCreated) -> None:
+        """Answer an incoming text message."""
+        user_text = event.message.body.text if event.message.body else None
+        if not user_text:
+            return
 
-            if self.config.stream:
-                await self._handle_streaming(event, user_text)
-            else:
-                await self._handle_sync(event, user_text)
+        if self.config.stream:
+            await self._handle_streaming(event, user_text)
+        else:
+            await self._handle_sync(event, user_text)
 
-    async def _handle_sync(self, event: MessageCreatedUpdate, user_text: str):
+    async def _handle_sync(
+            self,
+            event: MessageCreated,
+            user_text: str
+        ) -> None:
         """Handle message with non-streaming YandexGPT response."""
         try:
             response = await self.llm.complete(user_text)
             await event.message.answer(response.text)
         except Exception as e:
             logger.error("YandexGPT error: %s", e)
-            await event.message.answer("Произошла ошибка при обращении к YandexGPT.")
+            await event.message.answer(
+                "Произошла ошибка при обращении к YandexGPT."
+            )
 
-    async def _handle_streaming(self, event: MessageCreatedUpdate, user_text: str):
-        """Handle message with streaming YandexGPT response + message editing."""
+    async def _handle_streaming(
+            self,
+            event: MessageCreated,
+            user_text: str
+        ) -> None:
+        """Handle message with streaming YandexGPT.
+        
+        Response + message editing.
+        """
         try:
             # Send placeholder
             sent = await event.message.answer("...")
+            if sent is None or sent.message.body is None:
+                raise RuntimeError("Failed to send placeholder message")
             message_id = sent.message.body.mid
             accumulated = ""
             last_edit = 0.0
@@ -110,18 +168,26 @@ class MaxYandexGPT:
 
                 # Rate-limit edits
                 if now - last_edit >= self.config.stream_interval:
-                    await self.bot.edit_message(message_id=message_id, text=accumulated + " ...")
+                    await self.bot.edit_message(
+                        message_id=message_id,
+                        text=accumulated + " ..."
+                    )
                     last_edit = now
 
             # Final edit with complete text
             if accumulated:
-                await self.bot.edit_message(message_id=message_id, text=accumulated)
+                await self.bot.edit_message(
+                    message_id=message_id,
+                    text=accumulated
+                )
 
         except Exception as e:
             logger.error("Streaming error: %s", e)
-            await event.message.answer("Произошла ошибка при обращении к YandexGPT.")
+            await event.message.answer(
+                "Произошла ошибка при обращении к YandexGPT."
+            )
 
-    def run(self):
+    def run(self) -> None:
         """Start the bot (blocking)."""
         logger.info("Starting MaxYandexGPT bot...")
         try:
@@ -129,9 +195,9 @@ class MaxYandexGPT:
         except KeyboardInterrupt:
             logger.info("Bot stopped.")
 
-    async def _run_polling(self):
-        """Internal async entry point."""
+    async def _run_polling(self) -> None:
+        """Run internal async entry point."""
         try:
-            await self.dp.start_polling()
+            await self.dp.start_polling(self.bot)
         finally:
             await self.llm.close()

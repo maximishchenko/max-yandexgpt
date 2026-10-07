@@ -1,9 +1,14 @@
 """YandexGPT client via OpenAI-compatible API."""
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator, Iterable
 from dataclasses import dataclass
 
 from openai import AsyncOpenAI
+from openai.types.chat import (
+    ChatCompletionMessageParam,
+    ChatCompletionSystemMessageParam,
+    ChatCompletionUserMessageParam,
+)
 
 from .config import Config
 
@@ -22,7 +27,13 @@ class LLMResponse:
 class YandexGPT:
     """YandexGPT API client (OpenAI-compatible)."""
 
-    def __init__(self, config: Config):
+    def __init__(self, config: Config) -> None:
+        """LLM initialization.
+
+        Args:
+            config (Config): LLM configuration params.
+
+        """
         self.config = config
         self._client = AsyncOpenAI(
             api_key=config.yandex_api_key,
@@ -30,29 +41,43 @@ class YandexGPT:
         )
 
     def _model_uri(self) -> str:
+        """Return the model URI for the YandexGPT API."""
         return f"gpt://{self.config.yandex_folder_id}/{self.config.model}"
 
-    def _build_messages(self, user_text: str, history: list[dict] | None = None) -> list[dict]:
-        messages = [{"role": "system", "content": self.config.system_prompt}]
+    def _build_messages(
+            self,
+            user_text: str,
+            history: Iterable[ChatCompletionMessageParam] | None = None
+        ) -> list[ChatCompletionMessageParam]:
+        """Build the messages list for the YandexGPT API request."""
+        messages: list[ChatCompletionMessageParam] = [
+            ChatCompletionSystemMessageParam(
+                role="system", content=self.config.system_prompt
+            )
+        ]
         if history:
             messages.extend(history)
-        messages.append({"role": "user", "content": user_text})
+        messages.append(
+            ChatCompletionUserMessageParam(role="user", content=user_text)
+        )
         return messages
 
     async def complete(
-        self, user_text: str, history: list[dict] | None = None
-    ) -> LLMResponse:
+            self,
+            user_text: str,
+            history: Iterable[ChatCompletionMessageParam] | None = None
+        ) -> LLMResponse:
         """Send a non-streaming completion request."""
         messages = self._build_messages(user_text, history)
 
         response = await self._client.chat.completions.create(
-            model=self._model_uri(),
-            messages=messages,
-            temperature=self.config.temperature,
-            max_tokens=self.config.max_tokens,
-            stream=False,
-            extra_headers={"x-folder-id": self.config.yandex_folder_id},
-        )
+                model=self._model_uri(),
+                messages=messages,
+                temperature=self.config.temperature,
+                max_tokens=self.config.max_tokens,
+                stream=False,
+                extra_headers={"x-folder-id": self.config.yandex_folder_id},
+            )
 
         choice = response.choices[0]
         usage = response.usage
@@ -63,17 +88,19 @@ class YandexGPT:
         )
 
     async def stream(
-        self, user_text: str, history: list[dict] | None = None
-    ) -> AsyncIterator[str]:
+            self,
+            user_text: str,
+            history: Iterable[ChatCompletionMessageParam] | None = None
+        ) -> AsyncGenerator[str, None]:
         """Send a streaming completion request. Yields text deltas."""
         messages = self._build_messages(user_text, history)
 
         response = await self._client.chat.completions.create(
-            model=self._model_uri(),
-            messages=messages,
-            temperature=self.config.temperature,
-            max_tokens=self.config.max_tokens,
-            stream=True,
+                model=self._model_uri(),
+                messages=messages,
+                temperature=self.config.temperature,
+                max_tokens=self.config.max_tokens,
+                stream=True,
             extra_headers={"x-folder-id": self.config.yandex_folder_id},
         )
 
@@ -81,6 +108,6 @@ class YandexGPT:
             if chunk.choices and chunk.choices[0].delta.content:
                 yield chunk.choices[0].delta.content
 
-    async def close(self):
+    async def close(self) -> None:
         """Close the HTTP client."""
         await self._client.close()
