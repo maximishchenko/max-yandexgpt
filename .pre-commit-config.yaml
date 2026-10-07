@@ -16,3 +16,11 @@ repos:
             types: [python]
             pass_filenames: false
             always_run: true
+            
+          - id: pytest
+            name: pytest
+            entry: make tests-all
+            language: system
+            types: [python]
+            pass_filenames: false
+            always_run: true

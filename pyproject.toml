@@ -42,6 +42,8 @@ dev = [
     "coverage>=7.16.2",
     "mypy>=2.4.0",
     "pre-commit>=4.6.2",
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
     "ruff>=0.16.10",
 ]
 
@@ -121,6 +123,10 @@ exclude = [
     ".venv",
 ]
 typeCheckingMode = "strict"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
 
 [tool.uv]
 link-mode = "copy"
