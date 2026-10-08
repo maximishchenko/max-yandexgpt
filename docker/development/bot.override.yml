@@ -1,0 +1,14 @@
+services:
+  bot:
+    image: !reset null
+    build:
+      context: .
+      dockerfile: docker/development/Dockerfile
+      args:
+        DOCKER_PYTHON_VERSION: ${DOCKER_PYTHON_VERSION:-3.12}
+        DOCKER_APP_USER: ${DOCKER_APP_USER:-bot}
+        DOCKER_APP_HOME: ${DOCKER_APP_HOME:-/home/bot}
+    command: python bot.py
+    volumes:
+      - ./max_yandexgpt:${DOCKER_APP_HOME:-/home/bot}/max_yandexgpt
+      - ./bot.py:${DOCKER_APP_HOME:-/home/bot}/bot.py

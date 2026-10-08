@@ -1,3 +1,0 @@
-$env:MAX_TOKEN = "..."
-$env:YANDEX_API_KEY = "..."
-$env:YANDEX_FOLDER_ID = "..."

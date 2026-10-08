@@ -1,0 +1,43 @@
+# VCS / IDE
+.git/
+.gitignore
+.vscode/
+.idea/
+.editorconfig
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.coverage
+.coverage.*
+htmlcov/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.venv/
+
+# Secrets
+.env
+.env.*
+secrets/
+
+# Tests, docs, dev tooling
+tests/
+examples/
+.github/
+.pre-commit-config.yaml
+Makefile
+pyproject.toml
+uv.lock
+README.md
+CHANGELOG.md
+LICENSE
+
+# Docker
+docker/
+!docker/common/entrypoint.sh
+docker-compose*.yml
+.dockerignore

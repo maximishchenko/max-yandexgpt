@@ -1,0 +1,30 @@
+services:
+  bot:
+    container_name: max_yandexgpt_bot
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: '256M'
+        reservations:
+          cpus: '1'
+          memory: '128M'
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    secrets:
+      - max_api_token
+      - yandex_llm_api_key
+    environment:
+      MAX_TOKEN_FILE: /run/secrets/max_api_token
+      YANDEX_API_KEY_FILE: /run/secrets/yandex_llm_api_key
+      YANDEX_FOLDER_ID: ${YANDEX_FOLDER_ID:?}
+      DOCKER_PYTHON_VERSION: ${DOCKER_PYTHON_VERSION:-3.12}
+      DOCKER_APP_USER: ${DOCKER_APP_USER:-bot}
+      DOCKER_APP_HOME: ${DOCKER_APP_HOME:-/home/bot}
+      TZ: ${TZ:-Europe/Moscow}
+    networks:
+      extranet:

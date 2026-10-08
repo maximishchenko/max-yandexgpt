@@ -1,0 +1,16 @@
+# APP_ENV selects docker/<APP_ENV>/bot.override.yml: development (default) or production.
+include:
+  - path:
+    - ./docker/common/common.yml
+    project_directory: .
+
+  - path:
+    - ./docker/common/bot.yml
+    - ./docker/${APP_ENV:-development}/bot.override.yml
+    project_directory: .
+
+  - path: ./docker/init-secrets/init-secrets.yml
+    project_directory: .
+
+  - path: ./docker/tools/tools.yml
+    project_directory: .

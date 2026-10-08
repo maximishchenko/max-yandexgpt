@@ -27,7 +27,7 @@ repos:
 
           - id: commitizen
             name: commitizen check
-            entry: make check-commit-msg
+            entry: uv run cz check --commit-msg-file
             language: system
             pass_filenames: true
             stages: [commit-msg]

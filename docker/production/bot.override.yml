@@ -1,0 +1,10 @@
+services:
+  bot:
+    image: !reset null
+    build:
+      context: .
+      dockerfile: docker/production/Dockerfile
+      args:
+        DOCKER_PYTHON_VERSION: ${DOCKER_PYTHON_VERSION:-3.12}
+        DOCKER_APP_USER: ${DOCKER_APP_USER:-bot}
+        DOCKER_APP_HOME: ${DOCKER_APP_HOME:-/home/bot}

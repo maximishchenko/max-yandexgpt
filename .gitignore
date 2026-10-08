@@ -13,4 +13,7 @@ venv/
 .pytest_cache/
 .ruff_cache/
 .coverage
-setup_env.ps1
+requirements.txt
+requirements-dev.txt
+.vscode/
+secrets/

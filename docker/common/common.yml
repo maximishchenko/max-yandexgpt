@@ -1,0 +1,10 @@
+networks:
+  extranet:
+    driver: bridge
+
+secrets:
+  max_api_token:
+    file: ./secrets/max_api_token.txt
+  yandex_llm_api_key:
+    file: ./secrets/yandex_llm_api_key.txt
+

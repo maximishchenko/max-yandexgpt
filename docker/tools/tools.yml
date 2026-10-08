@@ -1,0 +1,17 @@
+services:
+  tools:
+    profiles: ["tools"]
+    build:
+      context: .
+      dockerfile: docker/tools/Dockerfile
+      args:
+        DOCKER_PYTHON_VERSION: ${DOCKER_PYTHON_VERSION:-3.12}
+    working_dir: /app
+    volumes:
+      - ./max_yandexgpt:/app/max_yandexgpt
+      - ./tests:/app/tests
+      - ./pyproject.toml:/app/pyproject.toml:ro
+      - tools_cache:/cache
+
+volumes:
+  tools_cache:
